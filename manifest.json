@@ -1,7 +1,7 @@
 {
     "name": "Shorts Scroller",
     "short_name": "Shorts",
-    "start_url": "/",
+    "start_url": "apptest",
     "display": "standalone",
     "background_color": "#000000",
     "theme_color": "#000000",
