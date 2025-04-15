@@ -1,62 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Blooket Embed with JS Injection Console</title>
+    <title>Interactive Blooket Console</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
+            background-color: #f5f5f5;
         }
         .container {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 15px;
         }
         .iframe-container {
-            position: relative;
             width: 100%;
             height: 500px;
-            border: 2px solid #ccc;
+            border: 2px solid #444;
             border-radius: 8px;
             overflow: hidden;
+            background-color: #000;
         }
         iframe {
             width: 100%;
             height: 100%;
             border: none;
         }
-        textarea {
-            width: 100%;
-            height: 100px;
+        .console-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .console-input {
+            display: flex;
+            gap: 10px;
+        }
+        #consoleCommand {
+            flex-grow: 1;
             padding: 10px;
-            border: 2px solid #ccc;
-            border-radius: 8px;
+            border: 2px solid #444;
+            border-radius: 5px;
             font-family: monospace;
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+        }
+        .console-buttons {
+            display: flex;
+            gap: 10px;
         }
         button {
             padding: 10px 15px;
-            background-color: #4CAF50;
-            color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
+            font-weight: bold;
         }
-        button:hover {
-            background-color: #45a049;
+        #executeBtn {
+            background-color: #4CAF50;
+            color: white;
         }
-        .warning {
-            color: red;
-            padding: 10px;
-            border: 1px solid red;
-            border-radius: 5px;
-            background-color: #ffebee;
+        #clearConsoleBtn {
+            background-color: #f44336;
+            color: white;
         }
-        .console {
-            width: 100%;
-            height: 200px;
+        .console-output {
+            height: 300px;
             background-color: #1e1e1e;
             color: #f0f0f0;
             padding: 10px;
@@ -67,132 +77,146 @@
         }
         .console-line {
             margin: 5px 0;
+            line-height: 1.4;
         }
-        .console-error {
-            color: #ff6b6b;
-        }
-        .console-success {
+        .command {
             color: #6bff6b;
         }
-        .console-info {
+        .error {
+            color: #ff6b6b;
+        }
+        .info {
             color: #6b6bff;
+        }
+        .response {
+            color: #ffff6b;
+        }
+        .warning-banner {
+            background-color: #ffeb3b;
+            color: #000;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Blooket Embed with JS Injection Console</h1>
+        <h1>Interactive Blooket Console</h1>
         
-        <div class="warning">
-            <strong>Important:</strong> Due to browser security (CORS/same-origin policy), JavaScript injection into cross-origin iframes is blocked. This demo shows the attempts but they will fail unless you control the target site.
+        <div class="warning-banner">
+            ⚠️ This cannot bypass CORS restrictions. It's for educational purposes only.
+            Real cross-origin scripting requires server-side proxies or browser security disabled.
         </div>
         
         <div class="iframe-container">
             <iframe id="blooketFrame" src="https://www.blooket.com/play" sandbox="allow-scripts allow-same-origin"></iframe>
         </div>
         
-        <div>
-            <h3>JavaScript Injection:</h3>
-            <textarea id="jsCode" placeholder="Enter JavaScript code here...">console.log('Hello from injected script!');</textarea>
-            <button onclick="injectJS()">Inject Code</button>
-            <button onclick="clearConsole()">Clear Console</button>
-        </div>
-        
-        <div>
-            <h3>Console Output:</h3>
-            <div id="console" class="console"></div>
+        <div class="console-container">
+            <h3>Interactive Console</h3>
+            <div class="console-input">
+                <input type="text" id="consoleCommand" placeholder="Enter JavaScript command..." autocomplete="off">
+                <button id="executeBtn" onclick="executeCommand()">Execute</button>
+            </div>
+            <div class="console-buttons">
+                <button id="clearConsoleBtn" onclick="clearConsole()">Clear Console</button>
+            </div>
+            <div id="consoleOutput" class="console-output"></div>
         </div>
     </div>
 
     <script>
         // Console functionality
+        const consoleOutput = document.getElementById('consoleOutput');
+        const commandInput = document.getElementById('consoleCommand');
+        
+        // Handle Enter key in command input
+        commandInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                executeCommand();
+            }
+        });
+        
         function logToConsole(message, type = 'info') {
-            const consoleElement = document.getElementById('console');
             const line = document.createElement('div');
-            line.className = `console-line console-${type}`;
-            line.textContent = `> ${message}`;
-            consoleElement.appendChild(line);
-            consoleElement.scrollTop = consoleElement.scrollHeight;
+            line.className = `console-line ${type}`;
+            line.innerHTML = message;
+            consoleOutput.appendChild(line);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
         }
-
+        
         function clearConsole() {
-            document.getElementById('console').innerHTML = '';
+            consoleOutput.innerHTML = '';
         }
-
-        // Attempt 1: Try to bypass CORS by modifying document.domain
-        function attemptDomainModification() {
-            try {
-                document.domain = document.domain;
-                logToConsole("Attempted document.domain modification", 'info');
-            } catch (e) {
-                logToConsole(`Domain modification failed: ${e.message}`, 'error');
-            }
-        }
-
-        // Attempt 2: Try to use postMessage to communicate
-        function postMessageToFrame() {
-            const frame = document.getElementById('blooketFrame');
-            const code = document.getElementById('jsCode').value;
+        
+        // Command history
+        let commandHistory = [];
+        let historyIndex = -1;
+        
+        // Execute command from input
+        function executeCommand() {
+            const command = commandInput.value.trim();
+            if (!command) return;
             
-            frame.contentWindow.postMessage({
-                type: 'injectedScript',
-                code: code
-            }, '*');
+            // Add to history
+            commandHistory.push(command);
+            historyIndex = commandHistory.length;
             
-            logToConsole("Attempted postMessage communication", 'info');
-        }
-
-        // Attempt 3: Try to inject via iframe src
-        function attemptJavascriptURI() {
-            const code = document.getElementById('jsCode').value;
-            const frame = document.getElementById('blooketFrame');
+            // Display command
+            logToConsole(`<span class="command">> ${command}</span>`, 'command');
             
-            try {
-                frame.src = "javascript:void(function(){" + encodeURIComponent(code) + "}())";
-                logToConsole("Attempted JavaScript URI injection", 'info');
-            } catch (e) {
-                logToConsole(`JavaScript URI injection failed: ${e.message}`, 'error');
-            }
+            // Try to execute in iframe
+            executeInIframe(command);
+            
+            // Clear input
+            commandInput.value = '';
         }
-
-        // Main injection function
-        function injectJS() {
-            const code = document.getElementById('jsCode').value;
+        
+        // Execute code in iframe using all available methods
+        function executeInIframe(code) {
             const frame = document.getElementById('blooketFrame');
             
-            logToConsole(`Attempting to inject: ${code}`, 'info');
-            
-            // Clear previous attempts
-            clearConsole();
-            
-            // Try all methods
-            attemptDomainModification();
-            
+            // Method 1: Try direct eval
             try {
-                // Method 1: Try direct injection (blocked by CORS)
-                const frameWindow = frame.contentWindow;
-                frameWindow.eval(code);
-                logToConsole("Direct injection attempted", 'info');
+                const result = frame.contentWindow.eval(code);
+                logToConsole(`<span class="response">↳ ${JSON.stringify(result)}</span>`, 'info');
+                return;
             } catch (e) {
-                logToConsole(`Direct injection failed: ${e.message}`, 'error');
-                
-                // Method 2: Try to modify iframe src with javascript:
-                attemptJavascriptURI();
-                
-                // Method 3: Post message
-                postMessageToFrame();
+                logToConsole(`<span class="error">Direct eval failed: ${e.message}</span>`, 'error');
             }
             
-            // Listen for responses from the iframe
-            window.addEventListener('message', function(event) {
-                // In a real scenario, you'd check event.origin for security
-                logToConsole(`Received message from iframe: ${JSON.stringify(event.data)}`, 'info');
-            });
+            // Method 2: Try postMessage
+            try {
+                frame.contentWindow.postMessage({
+                    type: 'consoleCommand',
+                    command: code
+                }, '*');
+                logToConsole(`<span class="info">Attempted postMessage communication</span>`, 'info');
+            } catch (e) {
+                logToConsole(`<span class="error">postMessage failed: ${e.message}</span>`, 'error');
+            }
+            
+            // Method 3: Try javascript: URI
+            try {
+                frame.src = `javascript:try{${encodeURIComponent(code)}}catch(e){console.error(e)}`;
+                logToConsole(`<span class="info">Attempted javascript: URI injection</span>`, 'info');
+            } catch (e) {
+                logToConsole(`<span class="error">javascript: URI failed: ${e.message}</span>`, 'error');
+            }
         }
-
-        // Initialize with some console info
-        logToConsole("Ready for injection attempts. Note that cross-origin injection will fail due to browser security.", 'info');
-        logToConsole("Try simple commands like: console.log('test') or alert('hello')", 'info');
+        
+        // Listen for messages from iframe (if it supports this)
+        window.addEventListener('message', function(event) {
+            // In a real implementation, you should verify event.origin
+            logToConsole(`<span class="response">Message from iframe: ${JSON.stringify(event.data)}</span>`, 'info');
+        });
+        
+        // Initial console message
+        logToConsole(`<span class="info">Interactive console ready. Commands will attempt to execute in the Blooket iframe.</span>`, 'info');
+        logToConsole(`<span class="info">Example commands: console.log('test'), document.title, alert('hello')</span>`, 'info');
+        logToConsole(`<span class="error">Note: Most commands will fail due to CORS restrictions.</span>`, 'error');
     </script>
 </body>
 </html>
